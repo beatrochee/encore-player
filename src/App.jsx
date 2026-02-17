@@ -849,6 +849,12 @@ export default function App() {
     const audioFiles = files.filter(f => f.type.startsWith('audio/'));
     if (audioFiles.length === 0) { alert("No audio files found."); return null; }
 
+    // DEBUG: Show raw path to diagnose Android naming issue
+    if (files.length > 0) {
+      const samplePaths = files.slice(0, 3).map(f => f.webkitRelativePath || '(empty)');
+      alert('DEBUG paths:\n' + samplePaths.join('\n'));
+    }
+
     // Extract folder name, skipping Android SAF path artifacts
     let folderName = "Imported Folder";
     if (files.length > 0 && files[0].webkitRelativePath) {
