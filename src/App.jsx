@@ -18,7 +18,8 @@ import {
   Sliders,
   Activity,
   X,
-  Plus
+  Plus,
+  GripVertical
 } from 'lucide-react';
 
 /* Encore! Player
@@ -182,23 +183,22 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
 const Waveform = ({ audioUrl, height = 64, color }) => {
   const canvasRef = useRef(null);
   const [status, setStatus] = useState('idle');
+  const [maskUrl, setMaskUrl] = useState(null);
 
+  // Decode and draw waveform only when audioUrl changes (not color)
   useEffect(() => {
     if (!audioUrl) return;
 
     const draw = async () => {
       setStatus('loading');
       try {
-        // Fetch buffer
         const response = await fetch(audioUrl);
         if (!response.ok) throw new Error('Network err');
         const arrayBuffer = await response.arrayBuffer();
 
-        // Decode
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-        // Process Peaks
         const channelData = audioBuffer.getChannelData(0);
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -212,7 +212,7 @@ const Waveform = ({ audioUrl, height = 64, color }) => {
         ctx.scale(dpr, dpr);
 
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = color;
+        ctx.fillStyle = '#ffffff';
 
         const step = Math.ceil(channelData.length / width);
         const amp = height / 2;
@@ -230,6 +230,7 @@ const Waveform = ({ audioUrl, height = 64, color }) => {
           ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
         }
 
+        setMaskUrl(canvas.toDataURL());
         setStatus('ready');
         audioCtx.close();
       } catch (e) {
@@ -239,14 +240,27 @@ const Waveform = ({ audioUrl, height = 64, color }) => {
     };
 
     draw();
-  }, [audioUrl, height, color]);
+  }, [audioUrl, height]);
 
   return (
     <div className="w-full h-full relative rounded overflow-hidden pointer-events-none opacity-80">
+      {/* Colored div masked by the waveform shape — color changes are instant */}
+      {maskUrl && (
+        <div
+          className="absolute inset-0 transition-colors duration-150"
+          style={{
+            backgroundColor: color,
+            WebkitMaskImage: `url(${maskUrl})`,
+            WebkitMaskSize: '100% 100%',
+            maskImage: `url(${maskUrl})`,
+            maskSize: '100% 100%',
+          }}
+        />
+      )}
       <canvas
         ref={canvasRef}
         className="w-full h-full"
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', position: 'absolute', opacity: 0 }}
       />
       {status === 'loading' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
@@ -461,8 +475,10 @@ const SetupScreen = ({ onLocalConnect, hasSavedCues, onContinue }) => {
   );
 };
 
-const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder }) => {
+const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onReorderCues }) => {
   const addFolderInputRef = useRef(null);
+  const dragItem = useRef(null);
+  const dragOverItem = useRef(null);
   const audioInstances = useRef(new Map());
   const loadGeneration = useRef(0);
   const [currentCueIndex, setCurrentCueIndex] = useState(0);
@@ -648,8 +664,7 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder }) =>
 
         <div className="flex items-center gap-2 md:gap-4">
             <div className={`flex items-center gap-1.5 md:gap-2 ${THEME.deck} rounded-lg p-1 px-2 md:px-3 border`}>
-                <span className={`text-[10px] md:text-xs font-bold uppercase ${autoNext ? THEME.accentText : THEME.textMuted} hidden sm:inline`}>Auto-Next</span>
-                <span className={`text-[10px] font-bold uppercase ${autoNext ? THEME.accentText : THEME.textMuted} sm:hidden`}>AN</span>
+                <span className={`text-[10px] md:text-xs font-bold uppercase ${autoNext ? THEME.accentText : THEME.textMuted}`}>Auto</span>
                 <button onClick={() => setAutoNext(!autoNext)} className={`w-8 h-4 rounded-full relative transition-colors ${autoNext ? 'bg-orange-500' : 'bg-black/30'}`}>
                     <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${autoNext ? 'left-4.5' : 'left-0.5'}`} style={{left: autoNext ? 'calc(100% - 14px)' : '2px'}}/>
                 </button>
@@ -682,8 +697,32 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder }) =>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {cues.map((cue, idx) => (
-                    <div key={cue.id} onClick={() => { setCurrentCueIndex(idx); setSidebarOpen(false); }} className={`px-3 md:px-4 py-3 border-b border-black/10 cursor-pointer transition-colors flex items-center gap-3 group/cue ${currentCueIndex === idx ? THEME.panelActive : 'hover:bg-white/5 border-l-4 border-l-transparent'}`}>
-                        <div className={`text-sm font-mono w-6 text-right ${currentCueIndex === idx ? THEME.accentText : THEME.textMuted}`}>{idx + 1}</div>
+                    <div
+                        key={cue.id}
+                        draggable
+                        onDragStart={() => { dragItem.current = idx; }}
+                        onDragEnter={() => { dragOverItem.current = idx; }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDragEnd={() => {
+                          if (dragItem.current === null || dragOverItem.current === null || dragItem.current === dragOverItem.current) return;
+                          const reordered = [...cues];
+                          const [moved] = reordered.splice(dragItem.current, 1);
+                          reordered.splice(dragOverItem.current, 0, moved);
+                          // Update currentCueIndex to follow the active cue
+                          const activeCueId = currentCue?.id;
+                          const newIdx = reordered.findIndex(c => c.id === activeCueId);
+                          if (newIdx >= 0) setCurrentCueIndex(newIdx);
+                          onReorderCues(reordered);
+                          dragItem.current = null;
+                          dragOverItem.current = null;
+                        }}
+                        onClick={() => { setCurrentCueIndex(idx); setSidebarOpen(false); }}
+                        className={`px-3 md:px-4 py-3 border-b border-black/10 cursor-pointer transition-colors flex items-center gap-2 group/cue ${currentCueIndex === idx ? THEME.panelActive : 'hover:bg-white/5 border-l-4 border-l-transparent'}`}
+                    >
+                        <div className="cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 shrink-0 touch-none" onPointerDown={(e) => e.currentTarget.parentElement.draggable = true}>
+                            <GripVertical size={14} />
+                        </div>
+                        <div className={`text-sm font-mono w-5 text-right ${currentCueIndex === idx ? THEME.accentText : THEME.textMuted}`}>{idx + 1}</div>
                         <div className="flex-1 min-w-0">
                             <div className={`text-sm font-medium truncate ${currentCueIndex === idx ? THEME.accentText : THEME.textSec}`}>{cue.name}</div>
                             {currentCueIndex === idx && isPlaying && <span className={`text-[10px] ${THEME.accentText} flex items-center gap-1 mt-1`}><div className={`w-1 h-1 ${THEME.accentText.replace('text-', 'bg-')} rounded-full`}/> Playing</span>}
@@ -793,7 +832,7 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder }) =>
 
 export default function App() {
   const [cues, setCues] = useState([]);
-  const [view, setView] = useState('setup');
+  const [view, setView] = useState('player');
   const [loading, setLoading] = useState(false);
   const [dbLoaded, setDbLoaded] = useState(false);
 
@@ -802,9 +841,10 @@ export default function App() {
     loadCuesFromDB()
       .then(saved => {
         if (saved.length > 0) setCues(saved);
+        else setView('setup');
         setDbLoaded(true);
       })
-      .catch(err => { console.warn('Failed to load from DB:', err); setDbLoaded(true); });
+      .catch(err => { console.warn('Failed to load from DB:', err); setView('setup'); setDbLoaded(true); });
   }, []);
 
   const processFolder = (e) => {
@@ -851,6 +891,11 @@ export default function App() {
     setView('setup');
   };
 
+  const handleReorderCues = (newCues) => {
+    setCues(newCues);
+    saveCuesToDB(newCues).catch(err => console.warn('DB save failed:', err));
+  };
+
   return (
     <div className={`${THEME.bg} ${THEME.textMain} min-h-screen transition-colors duration-500`}>
       {(loading || !dbLoaded) && (
@@ -873,6 +918,7 @@ export default function App() {
           onRemoveCue={handleRemoveCue}
           onClearAll={handleClearAll}
           onAddFolder={handleLocalConnect}
+          onReorderCues={handleReorderCues}
         />
       )}
     </div>
