@@ -666,15 +666,10 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
         <div className="flex items-center gap-2 md:gap-4">
             <button
                 onClick={() => setAutoNext(!autoNext)}
-                className={`flex items-center gap-1.5 rounded-lg p-1.5 px-2.5 border transition-colors ${autoNext ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' : `${THEME.deck} text-zinc-500`}`}
-                title="Auto-advance to next cue"
+                className={`rounded-lg py-1.5 px-3 border text-xs font-bold uppercase transition-colors ${autoNext ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' : `${THEME.deck} text-zinc-500`}`}
             >
-                <ListEnd size={16} />
-                <span className={`text-[10px] md:text-xs font-bold uppercase hidden sm:inline`}>Auto</span>
+                Autoplay
             </button>
-            <Button variant="ghost" onClick={onBack} title="Close Show" className="p-1.5 md:p-2">
-                <HardDrive size={18} />
-            </Button>
         </div>
       </div>
 
