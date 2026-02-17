@@ -177,9 +177,11 @@ const organizeFilesIntoCues = (flatFiles, folderName) => {
   }
 
   cuesMap.forEach((stems, name) => {
+    // Replace generic/system path names with the user-provided folder name
+    const displayName = GENERIC_PATH_NAMES.has(name.toLowerCase()) ? rootFolderName : name;
     cues.push({
       id: `cue-${name}`,
-      name: name,
+      name: displayName,
       stems: stems.sort((a,b) => a.name.localeCompare(b.name))
     });
   });
