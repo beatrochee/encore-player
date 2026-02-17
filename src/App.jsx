@@ -54,16 +54,10 @@ const THEME = {
 
 // --- Helper Functions ---
 
-const organizeFilesIntoCues = (flatFiles) => {
+const organizeFilesIntoCues = (flatFiles, folderName) => {
   const cuesMap = new Map();
   const rootStems = [];
-  let rootFolderName = "Imported Folder"; // Default fallback
-
-  // Attempt to grab the actual root folder name from the first file
-  if (flatFiles.length > 0 && flatFiles[0].webkitRelativePath) {
-      const parts = flatFiles[0].webkitRelativePath.split('/');
-      if (parts.length > 0) rootFolderName = parts[0];
-  }
+  const rootFolderName = folderName || "Imported Folder";
 
   flatFiles.forEach(file => {
     const pathParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [];
@@ -252,43 +246,27 @@ const StemLane = ({
   return (
     <div className={`flex flex-col ${THEME.deck} rounded-lg overflow-hidden shrink-0 transition-opacity ${muted || (isAnySolo && !soloed) ? 'opacity-60' : 'opacity-100'}`}>
 
-      {/* Top row: stem name + controls (compact on mobile) */}
-      <div className={`w-full ${THEME.deck} px-2 py-1.5 md:p-0 flex flex-row items-center gap-2 shrink-0 z-10 md:hidden`}>
+      {/* Mobile: stem name row */}
+      <div className={`w-full ${THEME.deck} px-2.5 py-1.5 md:p-0 flex flex-row items-center gap-2 shrink-0 z-10 md:hidden`}>
         <div className="w-6 h-6 rounded bg-black/20 flex items-center justify-center text-white/50 shrink-0 font-bold text-[10px] border border-white/5">
           {stem.stemName.substring(0,2).toUpperCase()}
         </div>
         <div className={`font-medium text-[11px] ${THEME.textSec} truncate flex-1 min-w-0`} title={stem.stemName}>
             {stem.stemName.replace(/\.[^/.]+$/, "")}
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-            <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={muted ? 0 : volume}
-                onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                className="w-12 h-1 bg-black/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:rounded-full"
-                disabled={muted || (isAnySolo && !soloed)}
-            />
-            <button
-                onClick={onMuteToggle}
-                className={`w-5 h-5 rounded flex items-center justify-center border ${muted ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-black/20 text-zinc-500 border-transparent hover:text-white'}`}
-                title="Mute"
-            >
-                <VolumeX size={10} />
-            </button>
-            <button
-                onClick={onSoloToggle}
-                className={`w-5 h-5 rounded flex items-center justify-center border ${soloed ? 'bg-orange-500 text-white border-orange-600' : 'bg-black/20 text-zinc-500 border-transparent hover:text-white'}`}
-                title="Solo"
-            >
-                <Headphones size={10} />
-            </button>
-        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={muted ? 0 : volume}
+            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+            className="w-14 h-1 bg-black/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:rounded-full shrink-0"
+            disabled={muted || (isAnySolo && !soloed)}
+        />
       </div>
 
-      <div className="flex flex-row h-12 md:h-20">
+      <div className="flex flex-row h-14 md:h-20 relative">
         {/* Left: Mixer Deck (desktop only) */}
         <div className={`hidden md:flex w-64 ${THEME.deck} p-3 border-r items-center gap-3 shrink-0 z-10`}>
           <div className="w-8 h-8 rounded bg-black/20 flex items-center justify-center text-white/50 shrink-0 font-bold text-xs border border-white/5">
@@ -351,6 +329,24 @@ const StemLane = ({
               className="absolute top-0 bottom-0 w-0.5 bg-white z-20 shadow-[0_0_10px_rgba(255,255,255,0.5)] pointer-events-none"
               style={{ left: `${playheadPosition}%` }}
            />
+        </div>
+
+        {/* Mobile: Mute/Solo buttons overlaid on right edge */}
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10 md:hidden">
+            <button
+                onClick={onMuteToggle}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center border ${muted ? 'bg-red-500/30 text-red-400 border-red-500/40' : 'bg-black/50 text-zinc-400 border-white/10'}`}
+                title="Mute"
+            >
+                <VolumeX size={14} />
+            </button>
+            <button
+                onClick={onSoloToggle}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center border ${soloed ? 'bg-orange-500 text-white border-orange-600' : 'bg-black/50 text-zinc-400 border-white/10'}`}
+                title="Solo"
+            >
+                <Headphones size={14} />
+            </button>
         </div>
       </div>
     </div>
@@ -570,7 +566,7 @@ const PlayerScreen = ({ cues, onBack }) => {
   };
 
   return (
-    <div className={`h-screen flex flex-col ${THEME.bg} ${THEME.textMain} font-sans overflow-hidden transition-colors duration-500`}>
+    <div className={`h-dvh flex flex-col ${THEME.bg} ${THEME.textMain} font-sans overflow-hidden transition-colors duration-500`}>
 
       {/* Header */}
       <div className={`${THEME.header} px-3 md:px-4 py-2 md:py-4 flex items-center justify-between shrink-0 h-12 md:h-16 z-30 border-b`}>
@@ -672,7 +668,7 @@ const PlayerScreen = ({ cues, onBack }) => {
             </div>
 
             {/* Transport Bar */}
-            <div className={`${THEME.header} px-3 py-2 md:p-4 z-30 shadow-2xl border-t`}>
+            <div className={`${THEME.header} px-3 py-2 md:p-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-30 shadow-2xl border-t shrink-0`}>
                 <div className="max-w-4xl mx-auto flex items-center gap-3 md:gap-6">
                     {/* Master Vol */}
                     <div className="hidden md:flex items-center gap-3 w-32 group">
@@ -711,10 +707,16 @@ export default function App() {
     const files = Array.from(e.target.files);
     const audioFiles = files.filter(f => f.type.startsWith('audio/'));
     if (audioFiles.length === 0) { alert("No audio files found."); setLoading(false); return; }
+    // Extract the root folder name from the first file's relative path
+    let folderName = "Imported Folder";
+    if (files.length > 0 && files[0].webkitRelativePath) {
+      const firstPath = files[0].webkitRelativePath.split('/');
+      if (firstPath.length > 1) folderName = firstPath[0];
+    }
     const rawFiles = audioFiles.map((file, index) => ({
-      id: `local-${index}-${file.name}`, name: file.name, file: file, webkitRelativePath: file.webkitRelativePath
+      id: `local-${index}-${file.name}`, name: file.name, file: file, webkitRelativePath: file.webkitRelativePath || ''
     }));
-    const groupedCues = organizeFilesIntoCues(rawFiles);
+    const groupedCues = organizeFilesIntoCues(rawFiles, folderName);
     setCues(groupedCues);
     setView('player');
     setLoading(false);
