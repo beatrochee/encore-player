@@ -505,7 +505,7 @@ const SetupScreen = ({ onLocalConnect, hasSavedCues, onContinue }) => {
   );
 };
 
-const PlayerScreen = ({ cues, onBack, onRemoveCue, onAddFolder }) => {
+const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder }) => {
   const addFolderInputRef = useRef(null);
   const audioInstances = useRef(new Map());
   const [currentCueIndex, setCurrentCueIndex] = useState(0);
@@ -727,7 +727,7 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onAddFolder }) => {
                         </div>
                         <button
                             onClick={(e) => { e.stopPropagation(); onRemoveCue(cue.id); if (currentCueIndex >= cues.length - 1 && currentCueIndex > 0) setCurrentCueIndex(prev => prev - 1); }}
-                            className="opacity-0 group-hover/cue:opacity-100 p-1 rounded hover:bg-red-500/20 text-zinc-500 hover:text-red-400 transition-all shrink-0"
+                            className="p-1.5 rounded hover:bg-red-500/20 text-zinc-600 hover:text-red-400 transition-all shrink-0"
                             title="Remove cue"
                         >
                             <X size={14} />
@@ -735,13 +735,19 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onAddFolder }) => {
                     </div>
                 ))}
             </div>
-            {/* Add Folder button */}
-            <div className={`p-3 border-t ${THEME.header.split('border-')[1] || 'border-transparent'}`}>
+            {/* Sidebar actions */}
+            <div className={`p-3 border-t ${THEME.header.split('border-')[1] || 'border-transparent'} space-y-2`}>
                 <button
                     onClick={() => addFolderInputRef.current?.click()}
                     className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${THEME.buttonSec} transition-colors`}
                 >
                     <Plus size={14} /> Import Folder
+                </button>
+                <button
+                    onClick={onClearAll}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                    <X size={14} /> Clear All
                 </button>
                 <input
                     ref={addFolderInputRef}
@@ -887,6 +893,12 @@ export default function App() {
     });
   };
 
+  const handleClearAll = () => {
+    setCues([]);
+    saveCuesToDB([]).catch(err => console.warn('DB clear failed:', err));
+    setView('setup');
+  };
+
   return (
     <div className={`${THEME.bg} ${THEME.textMain} min-h-screen transition-colors duration-500`}>
       {(loading || !dbLoaded) && (
@@ -907,6 +919,7 @@ export default function App() {
           cues={cues}
           onBack={() => setView('setup')}
           onRemoveCue={handleRemoveCue}
+          onClearAll={handleClearAll}
           onAddFolder={handleLocalConnect}
         />
       )}
