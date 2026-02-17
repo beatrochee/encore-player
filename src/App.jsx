@@ -849,17 +849,8 @@ export default function App() {
     const audioFiles = files.filter(f => f.type.startsWith('audio/'));
     if (audioFiles.length === 0) { alert("No audio files found."); return null; }
 
-    // Extract folder name, skipping Android SAF path artifacts (e.g. tree/primary/...)
-    let folderName = "Imported Folder";
-    if (files.length > 0 && files[0].webkitRelativePath) {
-      const parts = files[0].webkitRelativePath.split('/');
-      for (const part of parts) {
-        if (part && !GENERIC_PATH_NAMES.has(part.toLowerCase())) {
-          folderName = part;
-          break;
-        }
-      }
-    }
+    const folderName = prompt('Name this folder:', 'My Show');
+    if (!folderName) { setLoading(false); return null; }
 
     const rawFiles = audioFiles.map((file, index) => ({
       id: `local-${index}-${file.name}`, name: file.name, file: file, webkitRelativePath: file.webkitRelativePath || ''
