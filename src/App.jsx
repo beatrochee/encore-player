@@ -133,60 +133,14 @@ const removeCueFromDB = async (cueId) => {
 
 // --- Helper Functions ---
 
-const GENERIC_PATH_NAMES = new Set(['document', 'documents', 'primary', 'tree', 'content', 'root', 'storage', 'emulated', '0', 'self', 'external', 'sdcard', 'media']);
-
-const normalizePathParts = (parts) => {
-  // Strip leading generic/system path segments (Android SAF artifacts)
-  let start = 0;
-  while (start < parts.length - 1 && GENERIC_PATH_NAMES.has(parts[start].toLowerCase())) {
-    start++;
-  }
-  return start > 0 ? parts.slice(start) : parts;
-};
-
-const organizeFilesIntoCues = (flatFiles, folderName) => {
-  const cuesMap = new Map();
-  const rootStems = [];
-  const rootFolderName = folderName || "Imported Folder";
-
-  flatFiles.forEach(file => {
-    const rawParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [];
-    const pathParts = normalizePathParts(rawParts);
-
-    if (pathParts.length > 2) {
-      // It's in a subfolder. Use subfolder name as Cue Name.
-      const cueName = pathParts[pathParts.length - 2];
-      const existing = cuesMap.get(cueName) || [];
-      existing.push({ ...file, stemName: file.name });
-      cuesMap.set(cueName, existing);
-    } else {
-      // It's in the root folder.
-      rootStems.push({ ...file, stemName: file.name });
-    }
-  });
-
-  const cues = [];
-
-  // Use the detected Root Folder Name instead of "Main Folder"
-  if (rootStems.length > 0) {
-    cues.push({
-      id: 'root-cue',
-      name: rootFolderName,
-      stems: rootStems
-    });
-  }
-
-  cuesMap.forEach((stems, name) => {
-    // Replace generic/system path names with the user-provided folder name
-    const displayName = GENERIC_PATH_NAMES.has(name.toLowerCase()) ? rootFolderName : name;
-    cues.push({
-      id: `cue-${name}`,
-      name: displayName,
-      stems: stems.sort((a,b) => a.name.localeCompare(b.name))
-    });
-  });
-
-  return cues.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+const organizeFilesIntoCue = (flatFiles, folderName) => {
+  const stems = flatFiles.map(file => ({ ...file, stemName: file.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    id: `cue-${folderName}-${Date.now()}`,
+    name: folderName,
+    stems
+  };
 };
 
 // --- Components ---
@@ -855,19 +809,17 @@ export default function App() {
     if (!folderName) { setLoading(false); return null; }
 
     const rawFiles = audioFiles.map((file, index) => ({
-      id: `local-${index}-${file.name}`, name: file.name, file: file, webkitRelativePath: file.webkitRelativePath || ''
+      id: `local-${index}-${file.name}`, name: file.name, file: file
     }));
-    return organizeFilesIntoCues(rawFiles, folderName);
+    return organizeFilesIntoCue(rawFiles, folderName);
   };
 
   const handleLocalConnect = (e) => {
     setLoading(true);
-    const newCues = processFolder(e);
-    if (!newCues) { setLoading(false); return; }
-    // Merge: add new cues, skip duplicates by id
+    const newCue = processFolder(e);
+    if (!newCue) { setLoading(false); return; }
     setCues(prev => {
-      const existingIds = new Set(prev.map(c => c.id));
-      const merged = [...prev, ...newCues.filter(c => !existingIds.has(c.id))];
+      const merged = [...prev, newCue];
       saveCuesToDB(merged).catch(err => console.warn('DB save failed:', err));
       return merged;
     });
