@@ -464,6 +464,7 @@ const SetupScreen = ({ onLocalConnect, hasSavedCues, onContinue }) => {
 const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder }) => {
   const addFolderInputRef = useRef(null);
   const audioInstances = useRef(new Map());
+  const loadGeneration = useRef(0);
   const [currentCueIndex, setCurrentCueIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -514,7 +515,9 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder }) =>
   useEffect(() => {
     const loadCue = async () => {
       if (!currentCue) return;
-      audioInstances.current.forEach(audio => { audio.pause(); audio.src = ''; });
+      const gen = ++loadGeneration.current;
+
+      audioInstances.current.forEach(audio => audio.pause());
       audioInstances.current.clear();
       activeUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
       activeUrlsRef.current = [];
@@ -547,23 +550,27 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder }) =>
           audio.preload = 'auto';
 
           if (audioInstances.current.size === 0) {
-             audio.addEventListener('timeupdate', () => setCurrentTime(audio.currentTime));
-             audio.addEventListener('durationchange', () => setDuration(audio.duration));
-             audio.addEventListener('ended', () => { setIsPlaying(false); if (autoNext) handleNext(); });
-             audio.addEventListener('error', (e) => { console.error(e); setError("Playback Error"); });
+             audio.addEventListener('timeupdate', () => { if (loadGeneration.current === gen) setCurrentTime(audio.currentTime); });
+             audio.addEventListener('durationchange', () => { if (loadGeneration.current === gen) setDuration(audio.duration); });
+             audio.addEventListener('ended', () => { if (loadGeneration.current === gen) { setIsPlaying(false); if (autoNext) handleNext(); } });
+             audio.addEventListener('error', () => { if (loadGeneration.current === gen) setError("Playback Error"); });
           }
 
           audio.addEventListener('canplay', () => {
-            loadedCount++;
-            if (loadedCount >= totalStems) setIsLoading(false);
+            if (loadGeneration.current === gen) {
+              loadedCount++;
+              if (loadedCount >= totalStems) setIsLoading(false);
+            }
           });
           audioInstances.current.set(stem.id, audio);
         }));
         applyVolumes(initialMixerState);
       } catch (err) {
-        console.error(err);
-        setError("Failed to load audio stems.");
-        setIsLoading(false);
+        if (loadGeneration.current === gen) {
+          console.error(err);
+          setError("Failed to load audio stems.");
+          setIsLoading(false);
+        }
       }
     };
     loadCue();
