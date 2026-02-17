@@ -20,7 +20,7 @@ import {
   X,
   Plus,
   GripVertical,
-  ListEnd
+  Repeat
 } from 'lucide-react';
 
 /* Encore! Player
@@ -486,7 +486,7 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [autoNext, setAutoNext] = useState(false);
+  const [repeatTrack, setRepeatTrack] = useState(false);
   const [masterVolume, setMasterVolume] = useState(1);
   const [isMasterMuted, setIsMasterMuted] = useState(false);
   const [error, setError] = useState(null);
@@ -569,7 +569,17 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
           if (audioInstances.current.size === 0) {
              audio.addEventListener('timeupdate', () => { if (loadGeneration.current === gen) setCurrentTime(audio.currentTime); });
              audio.addEventListener('durationchange', () => { if (loadGeneration.current === gen) setDuration(audio.duration); });
-             audio.addEventListener('ended', () => { if (loadGeneration.current === gen) { setIsPlaying(false); if (autoNext) handleNext(); } });
+             audio.addEventListener('ended', () => {
+               if (loadGeneration.current !== gen) return;
+               if (repeatTrack) {
+                 audioInstances.current.forEach(a => { a.currentTime = 0; });
+                 const promises = [];
+                 audioInstances.current.forEach(a => promises.push(a.play()));
+                 Promise.all(promises).catch(() => setIsPlaying(false));
+               } else {
+                 setIsPlaying(false);
+               }
+             });
              audio.addEventListener('error', () => { if (loadGeneration.current === gen) setError("Playback Error"); });
           }
 
@@ -595,7 +605,7 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
       audioInstances.current.forEach(audio => audio.pause());
       activeUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
     };
-  }, [currentCueIndex]);
+  }, [currentCueIndex, currentCue?.id]);
 
   const togglePlay = () => {
     if (audioInstances.current.size === 0) return;
@@ -665,10 +675,11 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
 
         <div className="flex items-center gap-2 md:gap-4">
             <button
-                onClick={() => setAutoNext(!autoNext)}
-                className={`rounded-lg py-1.5 px-3 border text-xs font-bold uppercase transition-colors ${autoNext ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' : `${THEME.deck} text-zinc-500`}`}
+                onClick={() => setRepeatTrack(!repeatTrack)}
+                className={`p-1.5 rounded-lg border transition-colors ${repeatTrack ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                title="Repeat current track"
             >
-                Autoplay
+                <Repeat size={18} />
             </button>
         </div>
       </div>
