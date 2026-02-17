@@ -250,70 +250,108 @@ const StemLane = ({
   const waveColor = soloed ? THEME.waveSolo : (muted ? THEME.waveMuted : THEME.waveActive);
 
   return (
-    <div className={`flex flex-col md:flex-row h-28 md:h-20 ${THEME.deck} rounded-lg overflow-hidden shrink-0 transition-opacity ${muted || (isAnySolo && !soloed) ? 'opacity-60' : 'opacity-100'}`}>
+    <div className={`flex flex-col ${THEME.deck} rounded-lg overflow-hidden shrink-0 transition-opacity ${muted || (isAnySolo && !soloed) ? 'opacity-60' : 'opacity-100'}`}>
 
-      {/* Left: Mixer Deck */}
-      <div className={`w-full md:w-64 ${THEME.deck} p-2 md:p-3 border-b md:border-b-0 md:border-r flex flex-row items-center gap-3 shrink-0 z-10`}>
-        <div className="w-8 h-8 rounded bg-black/20 flex items-center justify-center text-white/50 shrink-0 font-bold text-xs border border-white/5">
+      {/* Top row: stem name + controls (compact on mobile) */}
+      <div className={`w-full ${THEME.deck} px-2 py-1.5 md:p-0 flex flex-row items-center gap-2 shrink-0 z-10 md:hidden`}>
+        <div className="w-6 h-6 rounded bg-black/20 flex items-center justify-center text-white/50 shrink-0 font-bold text-[10px] border border-white/5">
           {stem.stemName.substring(0,2).toUpperCase()}
         </div>
-
-        <div className="flex-1 min-w-0 flex flex-col justify-center">
-            <div className={`font-medium text-xs ${THEME.textSec} truncate mb-1`} title={stem.stemName}>
-                {stem.stemName.replace(/\.[^/.]+$/, "")}
-            </div>
-
-            <div className="flex items-center gap-2">
-                <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={muted ? 0 : volume}
-                    onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                    className="w-16 h-1 bg-black/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:rounded-full"
-                    disabled={muted || (isAnySolo && !soloed)}
-                />
-
-                <button
-                    onClick={onMuteToggle}
-                    className={`w-5 h-5 rounded flex items-center justify-center border ${muted ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-black/20 text-zinc-500 border-transparent hover:text-white'}`}
-                    title="Mute"
-                >
-                    <VolumeX size={10} />
-                </button>
-                <button
-                    onClick={onSoloToggle}
-                    className={`w-5 h-5 rounded flex items-center justify-center border ${soloed ? 'bg-orange-500 text-white border-orange-600' : 'bg-black/20 text-zinc-500 border-transparent hover:text-white'}`}
-                    title="Solo"
-                >
-                    <Headphones size={10} />
-                </button>
-            </div>
+        <div className={`font-medium text-[11px] ${THEME.textSec} truncate flex-1 min-w-0`} title={stem.stemName}>
+            {stem.stemName.replace(/\.[^/.]+$/, "")}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={muted ? 0 : volume}
+                onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                className="w-12 h-1 bg-black/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:rounded-full"
+                disabled={muted || (isAnySolo && !soloed)}
+            />
+            <button
+                onClick={onMuteToggle}
+                className={`w-5 h-5 rounded flex items-center justify-center border ${muted ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-black/20 text-zinc-500 border-transparent hover:text-white'}`}
+                title="Mute"
+            >
+                <VolumeX size={10} />
+            </button>
+            <button
+                onClick={onSoloToggle}
+                className={`w-5 h-5 rounded flex items-center justify-center border ${soloed ? 'bg-orange-500 text-white border-orange-600' : 'bg-black/20 text-zinc-500 border-transparent hover:text-white'}`}
+                title="Solo"
+            >
+                <Headphones size={10} />
+            </button>
         </div>
       </div>
 
-      {/* Right: Waveform Timeline (Clickable) */}
-      <div
-        className={`flex-1 relative ${THEME.lane} min-w-0 cursor-crosshair group active:cursor-grabbing`}
-        onClick={handleLaneClick}
-      >
-         <div className="absolute inset-0 p-1">
-            <Waveform
-                audioUrl={waveUrl}
-                color={waveColor}
-                height={64}
-            />
-         </div>
+      <div className="flex flex-row h-12 md:h-20">
+        {/* Left: Mixer Deck (desktop only) */}
+        <div className={`hidden md:flex w-64 ${THEME.deck} p-3 border-r items-center gap-3 shrink-0 z-10`}>
+          <div className="w-8 h-8 rounded bg-black/20 flex items-center justify-center text-white/50 shrink-0 font-bold text-xs border border-white/5">
+            {stem.stemName.substring(0,2).toUpperCase()}
+          </div>
 
-         {/* Hover Indicator */}
-         <div className="absolute inset-y-0 w-0.5 bg-white/20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"/>
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+              <div className={`font-medium text-xs ${THEME.textSec} truncate mb-1`} title={stem.stemName}>
+                  {stem.stemName.replace(/\.[^/.]+$/, "")}
+              </div>
 
-         {/* Playhead Overlay for this track */}
-         <div
-            className="absolute top-0 bottom-0 w-0.5 bg-white z-20 shadow-[0_0_10px_rgba(255,255,255,0.5)] pointer-events-none"
-            style={{ left: `${playheadPosition}%` }}
-         />
+              <div className="flex items-center gap-2">
+                  <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={muted ? 0 : volume}
+                      onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                      className="w-16 h-1 bg-black/40 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:rounded-full"
+                      disabled={muted || (isAnySolo && !soloed)}
+                  />
+
+                  <button
+                      onClick={onMuteToggle}
+                      className={`w-5 h-5 rounded flex items-center justify-center border ${muted ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-black/20 text-zinc-500 border-transparent hover:text-white'}`}
+                      title="Mute"
+                  >
+                      <VolumeX size={10} />
+                  </button>
+                  <button
+                      onClick={onSoloToggle}
+                      className={`w-5 h-5 rounded flex items-center justify-center border ${soloed ? 'bg-orange-500 text-white border-orange-600' : 'bg-black/20 text-zinc-500 border-transparent hover:text-white'}`}
+                      title="Solo"
+                  >
+                      <Headphones size={10} />
+                  </button>
+              </div>
+          </div>
+        </div>
+
+        {/* Right: Waveform Timeline (Clickable) */}
+        <div
+          className={`flex-1 relative ${THEME.lane} min-w-0 cursor-crosshair group active:cursor-grabbing`}
+          onClick={handleLaneClick}
+        >
+           <div className="absolute inset-0 p-1">
+              <Waveform
+                  audioUrl={waveUrl}
+                  color={waveColor}
+                  height={64}
+              />
+           </div>
+
+           {/* Hover Indicator */}
+           <div className="absolute inset-y-0 w-0.5 bg-white/20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"/>
+
+           {/* Playhead Overlay for this track */}
+           <div
+              className="absolute top-0 bottom-0 w-0.5 bg-white z-20 shadow-[0_0_10px_rgba(255,255,255,0.5)] pointer-events-none"
+              style={{ left: `${playheadPosition}%` }}
+           />
+        </div>
       </div>
     </div>
   );
@@ -385,6 +423,7 @@ const PlayerScreen = ({ cues, onBack }) => {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [mixerState, setMixerState] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const activeUrlsRef = useRef([]);
 
   const currentCue = cues[currentCueIndex];
@@ -534,10 +573,14 @@ const PlayerScreen = ({ cues, onBack }) => {
     <div className={`h-screen flex flex-col ${THEME.bg} ${THEME.textMain} font-sans overflow-hidden transition-colors duration-500`}>
 
       {/* Header */}
-      <div className={`${THEME.header} p-4 flex items-center justify-between shrink-0 h-16 z-30 border-b`}>
-        <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-900/40">
-                <Music size={18} className="text-white" />
+      <div className={`${THEME.header} px-3 md:px-4 py-2 md:py-4 flex items-center justify-between shrink-0 h-12 md:h-16 z-30 border-b`}>
+        <div className="flex items-center gap-2 md:gap-3">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-1.5 rounded-lg hover:bg-white/10 text-zinc-300">
+                <List size={20} />
+            </button>
+            <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-orange-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-900/40">
+                <Music size={16} className="text-white md:hidden" />
+                <Music size={18} className="text-white hidden md:block" />
             </div>
             <div>
                 <h1 className="font-bold text-lg leading-none hidden md:block">encore!</h1>
@@ -545,29 +588,43 @@ const PlayerScreen = ({ cues, onBack }) => {
             </div>
         </div>
 
-        <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-2 ${THEME.deck} rounded-lg p-1 px-3 border`}>
-                <span className={`text-xs font-bold uppercase ${autoNext ? THEME.accentText : THEME.textMuted}`}>Auto-Next</span>
+        <div className="flex items-center gap-2 md:gap-4">
+            <div className={`flex items-center gap-1.5 md:gap-2 ${THEME.deck} rounded-lg p-1 px-2 md:px-3 border`}>
+                <span className={`text-[10px] md:text-xs font-bold uppercase ${autoNext ? THEME.accentText : THEME.textMuted} hidden sm:inline`}>Auto-Next</span>
+                <span className={`text-[10px] font-bold uppercase ${autoNext ? THEME.accentText : THEME.textMuted} sm:hidden`}>AN</span>
                 <button onClick={() => setAutoNext(!autoNext)} className={`w-8 h-4 rounded-full relative transition-colors ${autoNext ? 'bg-orange-500' : 'bg-black/30'}`}>
                     <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${autoNext ? 'left-4.5' : 'left-0.5'}`} style={{left: autoNext ? 'calc(100% - 14px)' : '2px'}}/>
                 </button>
             </div>
-            <Button variant="ghost" onClick={onBack} title="Close Show">
-                <HardDrive size={20} />
+            <Button variant="ghost" onClick={onBack} title="Close Show" className="p-1.5 md:p-2">
+                <HardDrive size={18} />
             </Button>
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+
+        {/* Mobile sidebar backdrop */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 bg-black/60 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
+        )}
 
         {/* Sidebar: Cues */}
-        <div className={`w-56 md:w-64 ${THEME.sidebar} border-r border-r-${THEME.header.split('border-')[1]} flex flex-col shrink-0 z-20`}>
-            <div className={`p-4 border-b ${THEME.header.split('border-')[1] || 'border-transparent'} text-xs font-bold ${THEME.textMuted} uppercase tracking-wider flex items-center gap-2`}>
-                <List size={14} /> Cues ({cues.length})
+        <div className={`
+          fixed md:relative inset-y-0 left-0 z-40 md:z-20
+          w-64 ${THEME.sidebar} border-r border-r-${THEME.header.split('border-')[1]} flex flex-col shrink-0
+          transform transition-transform duration-200 ease-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
+        `}>
+            <div className={`p-3 md:p-4 border-b ${THEME.header.split('border-')[1] || 'border-transparent'} text-xs font-bold ${THEME.textMuted} uppercase tracking-wider flex items-center justify-between`}>
+                <span className="flex items-center gap-2"><List size={14} /> Cues ({cues.length})</span>
+                <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1 rounded hover:bg-white/10 text-zinc-400">
+                    <Square size={12} />
+                </button>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {cues.map((cue, idx) => (
-                    <div key={cue.id} onClick={() => setCurrentCueIndex(idx)} className={`px-4 py-3 border-b border-black/10 cursor-pointer transition-colors flex items-center gap-3 ${currentCueIndex === idx ? THEME.panelActive : 'hover:bg-white/5 border-l-4 border-l-transparent'}`}>
+                    <div key={cue.id} onClick={() => { setCurrentCueIndex(idx); setSidebarOpen(false); }} className={`px-3 md:px-4 py-3 border-b border-black/10 cursor-pointer transition-colors flex items-center gap-3 ${currentCueIndex === idx ? THEME.panelActive : 'hover:bg-white/5 border-l-4 border-l-transparent'}`}>
                         <div className={`text-sm font-mono w-6 text-right ${currentCueIndex === idx ? THEME.accentText : THEME.textMuted}`}>{idx + 1}</div>
                         <div className="flex-1 min-w-0">
                             <div className={`text-sm font-medium truncate ${currentCueIndex === idx ? THEME.accentText : THEME.textSec}`}>{cue.name}</div>
@@ -582,19 +639,19 @@ const PlayerScreen = ({ cues, onBack }) => {
         <div className={`flex-1 flex flex-col ${THEME.bg} relative min-w-0 transition-colors duration-500`}>
 
             {/* Song Info Bar */}
-            <div className={`p-4 border-b ${THEME.header.split('border-')[1]} bg-black/10 flex items-center justify-between z-20`}>
-                <div>
-                    <h2 className="text-xl font-bold leading-tight">{currentCue?.name || "No Song Selected"}</h2>
-                    {isLoading && <span className={`${THEME.accentText} text-xs animate-pulse`}>Syncing & Generating Waveforms...</span>}
-                    {error && <span className="text-red-400 text-xs">{error}</span>}
+            <div className={`px-3 md:px-4 py-2 md:py-4 border-b ${THEME.header.split('border-')[1]} bg-black/10 flex items-center justify-between z-20 gap-2`}>
+                <div className="min-w-0 flex-1">
+                    <h2 className="text-base md:text-xl font-bold leading-tight truncate">{currentCue?.name || "No Song Selected"}</h2>
+                    {isLoading && <span className={`${THEME.accentText} text-[10px] md:text-xs animate-pulse`}>Syncing & Generating Waveforms...</span>}
+                    {error && <span className="text-red-400 text-[10px] md:text-xs">{error}</span>}
                 </div>
-                <div className="text-right">
-                    <div className="text-2xl font-mono font-light">{formatTime(currentTime)} <span className={`${THEME.textMuted} text-lg`}>/ {formatTime(duration)}</span></div>
+                <div className="text-right shrink-0">
+                    <div className="text-lg md:text-2xl font-mono font-light">{formatTime(currentTime)} <span className={`${THEME.textMuted} text-sm md:text-lg`}>/ {formatTime(duration)}</span></div>
                 </div>
             </div>
 
             {/* DAW Lane Area */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2 relative">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-4 space-y-1.5 md:space-y-2 relative">
                 {stems.length > 0 ? stems.map((stem) => (
                     <StemLane
                         key={stem.id}
@@ -615,8 +672,8 @@ const PlayerScreen = ({ cues, onBack }) => {
             </div>
 
             {/* Transport Bar */}
-            <div className={`${THEME.header} p-4 z-30 shadow-2xl border-t`}>
-                <div className="max-w-4xl mx-auto flex items-center gap-6">
+            <div className={`${THEME.header} px-3 py-2 md:p-4 z-30 shadow-2xl border-t`}>
+                <div className="max-w-4xl mx-auto flex items-center gap-3 md:gap-6">
                     {/* Master Vol */}
                     <div className="hidden md:flex items-center gap-3 w-32 group">
                         <button onClick={() => setIsMasterMuted(!isMasterMuted)} className={`${THEME.textSec} hover:text-white`}>
@@ -626,13 +683,13 @@ const PlayerScreen = ({ cues, onBack }) => {
                     </div>
 
                     {/* Controls */}
-                    <div className="flex-1 flex items-center justify-center gap-6">
-                        <Button variant="secondary" onClick={handlePrev} className="w-10 h-10 rounded-full"><SkipBack size={18}/></Button>
-                        <button onClick={togglePlay} disabled={isLoading} className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg transition-transform active:scale-95 ${isPlaying ? 'bg-orange-500 text-white hover:bg-orange-400' : 'bg-gradient-to-r from-orange-500 to-rose-600 text-white hover:from-orange-400 hover:to-rose-500'}`}>
-                            {isPlaying ? <Pause size={28} fill="currentColor"/> : <Play size={32} fill="currentColor" className="ml-1"/>}
+                    <div className="flex-1 flex items-center justify-center gap-3 md:gap-6">
+                        <Button variant="secondary" onClick={handlePrev} className="w-9 h-9 md:w-10 md:h-10 rounded-full"><SkipBack size={16}/></Button>
+                        <button onClick={togglePlay} disabled={isLoading} className={`w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center shadow-lg transition-transform active:scale-95 ${isPlaying ? 'bg-orange-500 text-white hover:bg-orange-400' : 'bg-gradient-to-r from-orange-500 to-rose-600 text-white hover:from-orange-400 hover:to-rose-500'}`}>
+                            {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={28} fill="currentColor" className="ml-0.5"/>}
                         </button>
-                        <Button variant="danger" onClick={stop} className="w-10 h-10 rounded-full"><Square size={14} fill="currentColor"/></Button>
-                        <Button variant="secondary" onClick={handleNext} className="w-10 h-10 rounded-full"><SkipForward size={18}/></Button>
+                        <Button variant="danger" onClick={stop} className="w-9 h-9 md:w-10 md:h-10 rounded-full"><Square size={12} fill="currentColor"/></Button>
+                        <Button variant="secondary" onClick={handleNext} className="w-9 h-9 md:w-10 md:h-10 rounded-full"><SkipForward size={16}/></Button>
                     </div>
 
                     <div className="hidden md:block w-32"></div>
