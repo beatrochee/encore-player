@@ -16,7 +16,9 @@ import {
   Mic2,
   Headphones,
   Sliders,
-  Activity
+  Activity,
+  X,
+  Plus
 } from 'lucide-react';
 
 /* Encore! Player
@@ -50,6 +52,83 @@ const THEME = {
   waveMuted: '#52525b', // zinc-600
   waveSolo: '#fbbf24',
   waveActive: '#f97316'
+};
+
+// --- IndexedDB Helpers ---
+
+const DB_NAME = 'encore-db';
+const DB_VERSION = 1;
+const STORE_NAME = 'cues';
+
+const openDB = () => new Promise((resolve, reject) => {
+  const request = indexedDB.open(DB_NAME, DB_VERSION);
+  request.onupgradeneeded = (e) => {
+    const db = e.target.result;
+    if (!db.objectStoreNames.contains(STORE_NAME)) {
+      db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+    }
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+const saveCuesToDB = async (cues) => {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const store = tx.objectStore(STORE_NAME);
+  // Clear existing and write all
+  store.clear();
+  for (const cue of cues) {
+    const record = {
+      id: cue.id,
+      name: cue.name,
+      stems: cue.stems.map(s => ({
+        id: s.id,
+        stemName: s.stemName,
+        name: s.name,
+        blob: s.file || s.blob || null,
+      })),
+    };
+    store.put(record);
+  }
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+};
+
+const loadCuesFromDB = async () => {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, 'readonly');
+  const store = tx.objectStore(STORE_NAME);
+  const request = store.getAll();
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => {
+      const records = request.result || [];
+      const cues = records.map(r => ({
+        id: r.id,
+        name: r.name,
+        stems: r.stems.map(s => ({
+          id: s.id,
+          stemName: s.stemName,
+          name: s.name,
+          file: s.blob, // Blob stored in IDB, usable as File for createObjectURL
+        })),
+      }));
+      resolve(cues);
+    };
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const removeCueFromDB = async (cueId) => {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  tx.objectStore(STORE_NAME).delete(cueId);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
 };
 
 // --- Helper Functions ---
@@ -246,11 +325,8 @@ const StemLane = ({
   return (
     <div className={`flex flex-col ${THEME.deck} rounded-lg overflow-hidden shrink-0 transition-opacity ${muted || (isAnySolo && !soloed) ? 'opacity-60' : 'opacity-100'}`}>
 
-      {/* Mobile: stem name row */}
+      {/* Mobile: stem name + volume row */}
       <div className={`w-full ${THEME.deck} px-2.5 py-1.5 md:p-0 flex flex-row items-center gap-2 shrink-0 z-10 md:hidden`}>
-        <div className="w-6 h-6 rounded bg-black/20 flex items-center justify-center text-white/50 shrink-0 font-bold text-[10px] border border-white/5">
-          {stem.stemName.substring(0,2).toUpperCase()}
-        </div>
         <div className={`font-medium text-[11px] ${THEME.textSec} truncate flex-1 min-w-0`} title={stem.stemName}>
             {stem.stemName.replace(/\.[^/.]+$/, "")}
         </div>
@@ -266,8 +342,27 @@ const StemLane = ({
         />
       </div>
 
-      <div className="flex flex-row h-14 md:h-20 relative">
-        {/* Left: Mixer Deck (desktop only) */}
+      <div className="flex flex-row h-14 md:h-20">
+        {/* Mobile: Mute/Solo strip */}
+        <div className={`flex md:hidden flex-col w-11 shrink-0 ${THEME.deck} border-r border-zinc-700/50`}>
+          <button
+              onClick={onMuteToggle}
+              className={`flex-1 flex items-center justify-center transition-colors ${muted ? 'bg-red-500/20 text-red-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="Mute"
+          >
+              <VolumeX size={16} />
+          </button>
+          <div className="h-px bg-zinc-700/50" />
+          <button
+              onClick={onSoloToggle}
+              className={`flex-1 flex items-center justify-center transition-colors ${soloed ? 'bg-orange-500/20 text-orange-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="Solo"
+          >
+              <Headphones size={16} />
+          </button>
+        </div>
+
+        {/* Desktop: Mixer Deck */}
         <div className={`hidden md:flex w-64 ${THEME.deck} p-3 border-r items-center gap-3 shrink-0 z-10`}>
           <div className="w-8 h-8 rounded bg-black/20 flex items-center justify-center text-white/50 shrink-0 font-bold text-xs border border-white/5">
             {stem.stemName.substring(0,2).toUpperCase()}
@@ -308,7 +403,7 @@ const StemLane = ({
           </div>
         </div>
 
-        {/* Right: Waveform Timeline (Clickable) */}
+        {/* Waveform Timeline (Clickable) */}
         <div
           className={`flex-1 relative ${THEME.lane} min-w-0 cursor-crosshair group active:cursor-grabbing`}
           onClick={handleLaneClick}
@@ -330,30 +425,12 @@ const StemLane = ({
               style={{ left: `${playheadPosition}%` }}
            />
         </div>
-
-        {/* Mobile: Mute/Solo buttons overlaid on right edge */}
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10 md:hidden">
-            <button
-                onClick={onMuteToggle}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center border ${muted ? 'bg-red-500/30 text-red-400 border-red-500/40' : 'bg-black/50 text-zinc-400 border-white/10'}`}
-                title="Mute"
-            >
-                <VolumeX size={14} />
-            </button>
-            <button
-                onClick={onSoloToggle}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center border ${soloed ? 'bg-orange-500 text-white border-orange-600' : 'bg-black/50 text-zinc-400 border-white/10'}`}
-                title="Solo"
-            >
-                <Headphones size={14} />
-            </button>
-        </div>
       </div>
     </div>
   );
 };
 
-const SetupScreen = ({ onLocalConnect }) => {
+const SetupScreen = ({ onLocalConnect, hasSavedCues, onContinue }) => {
   return (
     <div className={`min-h-screen ${THEME.bg} ${THEME.textMain} flex items-center justify-center p-4 font-sans relative overflow-hidden transition-colors duration-500`}>
       {/* Background Decor */}
@@ -372,10 +449,19 @@ const SetupScreen = ({ onLocalConnect }) => {
         </div>
 
         <div className="p-8 space-y-6">
+          {hasSavedCues && (
+            <button
+              onClick={onContinue}
+              className="w-full bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-rose-900/20 transition-all transform hover:scale-[1.02] flex items-center justify-center gap-3"
+            >
+              <Play size={20} fill="currentColor" />
+              Continue to Player
+            </button>
+          )}
           <div className={`border-2 border-dashed ${THEME.textSec.split(' ')[0]}/20 hover:border-orange-500/50 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 transition-colors bg-black/10`}>
             <Folder size={48} className={THEME.textMuted} />
             <div className="text-center">
-                <p className={`${THEME.textSec} font-medium`}>Select Show Folder</p>
+                <p className={`${THEME.textSec} font-medium`}>{hasSavedCues ? 'Import Another Folder' : 'Select Show Folder'}</p>
                 <p className={`text-xs ${THEME.textMuted} mt-2 max-w-[200px] mx-auto leading-relaxed`}>
                     Folder structure determines songs.
                     <br/>
@@ -383,7 +469,7 @@ const SetupScreen = ({ onLocalConnect }) => {
                 </p>
             </div>
             <label className="cursor-pointer group">
-              <span className="bg-gradient-to-r from-orange-500 to-rose-600 group-hover:from-orange-400 group-hover:to-rose-500 text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-rose-900/20 transition-all inline-block transform group-hover:scale-105">
+              <span className={`${hasSavedCues ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-gradient-to-r from-orange-500 to-rose-600 group-hover:from-orange-400 group-hover:to-rose-500'} text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-rose-900/20 transition-all inline-block transform group-hover:scale-105`}>
                 Browse Folder
               </span>
               <input
@@ -407,7 +493,8 @@ const SetupScreen = ({ onLocalConnect }) => {
   );
 };
 
-const PlayerScreen = ({ cues, onBack }) => {
+const PlayerScreen = ({ cues, onBack, onRemoveCue, onAddFolder }) => {
+  const addFolderInputRef = useRef(null);
   const audioInstances = useRef(new Map());
   const [currentCueIndex, setCurrentCueIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -620,14 +707,40 @@ const PlayerScreen = ({ cues, onBack }) => {
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {cues.map((cue, idx) => (
-                    <div key={cue.id} onClick={() => { setCurrentCueIndex(idx); setSidebarOpen(false); }} className={`px-3 md:px-4 py-3 border-b border-black/10 cursor-pointer transition-colors flex items-center gap-3 ${currentCueIndex === idx ? THEME.panelActive : 'hover:bg-white/5 border-l-4 border-l-transparent'}`}>
+                    <div key={cue.id} onClick={() => { setCurrentCueIndex(idx); setSidebarOpen(false); }} className={`px-3 md:px-4 py-3 border-b border-black/10 cursor-pointer transition-colors flex items-center gap-3 group/cue ${currentCueIndex === idx ? THEME.panelActive : 'hover:bg-white/5 border-l-4 border-l-transparent'}`}>
                         <div className={`text-sm font-mono w-6 text-right ${currentCueIndex === idx ? THEME.accentText : THEME.textMuted}`}>{idx + 1}</div>
                         <div className="flex-1 min-w-0">
                             <div className={`text-sm font-medium truncate ${currentCueIndex === idx ? THEME.accentText : THEME.textSec}`}>{cue.name}</div>
                             {currentCueIndex === idx && isPlaying && <span className={`text-[10px] ${THEME.accentText} flex items-center gap-1 mt-1`}><div className={`w-1 h-1 ${THEME.accentText.replace('text-', 'bg-')} rounded-full`}/> Playing</span>}
                         </div>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onRemoveCue(cue.id); if (currentCueIndex >= cues.length - 1 && currentCueIndex > 0) setCurrentCueIndex(prev => prev - 1); }}
+                            className="opacity-0 group-hover/cue:opacity-100 p-1 rounded hover:bg-red-500/20 text-zinc-500 hover:text-red-400 transition-all shrink-0"
+                            title="Remove cue"
+                        >
+                            <X size={14} />
+                        </button>
                     </div>
                 ))}
+            </div>
+            {/* Add Folder button */}
+            <div className={`p-3 border-t ${THEME.header.split('border-')[1] || 'border-transparent'}`}>
+                <button
+                    onClick={() => addFolderInputRef.current?.click()}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${THEME.buttonSec} transition-colors`}
+                >
+                    <Plus size={14} /> Import Folder
+                </button>
+                <input
+                    ref={addFolderInputRef}
+                    type="file"
+                    webkitdirectory=""
+                    directory=""
+                    multiple
+                    className="hidden"
+                    onChange={onAddFolder}
+                    accept="audio/*"
+                />
             </div>
         </div>
 
@@ -701,13 +814,22 @@ export default function App() {
   const [cues, setCues] = useState([]);
   const [view, setView] = useState('setup');
   const [loading, setLoading] = useState(false);
+  const [dbLoaded, setDbLoaded] = useState(false);
 
-  const handleLocalConnect = (e) => {
-    setLoading(true);
+  // Load saved cues from IndexedDB on mount
+  useEffect(() => {
+    loadCuesFromDB()
+      .then(saved => {
+        if (saved.length > 0) setCues(saved);
+        setDbLoaded(true);
+      })
+      .catch(err => { console.warn('Failed to load from DB:', err); setDbLoaded(true); });
+  }, []);
+
+  const processFolder = (e) => {
     const files = Array.from(e.target.files);
     const audioFiles = files.filter(f => f.type.startsWith('audio/'));
-    if (audioFiles.length === 0) { alert("No audio files found."); setLoading(false); return; }
-    // Extract the root folder name from the first file's relative path
+    if (audioFiles.length === 0) { alert("No audio files found."); return null; }
     let folderName = "Imported Folder";
     if (files.length > 0 && files[0].webkitRelativePath) {
       const firstPath = files[0].webkitRelativePath.split('/');
@@ -716,22 +838,58 @@ export default function App() {
     const rawFiles = audioFiles.map((file, index) => ({
       id: `local-${index}-${file.name}`, name: file.name, file: file, webkitRelativePath: file.webkitRelativePath || ''
     }));
-    const groupedCues = organizeFilesIntoCues(rawFiles, folderName);
-    setCues(groupedCues);
+    return organizeFilesIntoCues(rawFiles, folderName);
+  };
+
+  const handleLocalConnect = (e) => {
+    setLoading(true);
+    const newCues = processFolder(e);
+    if (!newCues) { setLoading(false); return; }
+    // Merge: add new cues, skip duplicates by id
+    setCues(prev => {
+      const existingIds = new Set(prev.map(c => c.id));
+      const merged = [...prev, ...newCues.filter(c => !existingIds.has(c.id))];
+      saveCuesToDB(merged).catch(err => console.warn('DB save failed:', err));
+      return merged;
+    });
     setView('player');
     setLoading(false);
+    // Reset input so same folder can be re-selected
+    e.target.value = '';
+  };
+
+  const handleRemoveCue = (cueId) => {
+    setCues(prev => {
+      const updated = prev.filter(c => c.id !== cueId);
+      saveCuesToDB(updated).catch(err => console.warn('DB save failed:', err));
+      if (updated.length === 0) setView('setup');
+      return updated;
+    });
   };
 
   return (
     <div className={`${THEME.bg} ${THEME.textMain} min-h-screen transition-colors duration-500`}>
-      {loading && (
+      {(loading || !dbLoaded) && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center flex-col gap-4">
           <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-orange-400 font-medium animate-pulse">Organizing Stems...</p>
+          <p className="text-orange-400 font-medium animate-pulse">{dbLoaded ? 'Organizing Stems...' : 'Loading...'}</p>
         </div>
       )}
-      {view === 'setup' && <SetupScreen onLocalConnect={handleLocalConnect} />}
-      {view === 'player' && <PlayerScreen cues={cues} onBack={() => setView('setup')} />}
+      {dbLoaded && view === 'setup' && (
+        <SetupScreen
+          onLocalConnect={handleLocalConnect}
+          hasSavedCues={cues.length > 0}
+          onContinue={() => setView('player')}
+        />
+      )}
+      {view === 'player' && (
+        <PlayerScreen
+          cues={cues}
+          onBack={() => setView('setup')}
+          onRemoveCue={handleRemoveCue}
+          onAddFolder={handleLocalConnect}
+        />
+      )}
     </div>
   );
 }
