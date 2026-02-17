@@ -133,7 +133,7 @@ const removeCueFromDB = async (cueId) => {
 
 // --- Helper Functions ---
 
-const GENERIC_PATH_NAMES = new Set(['document', 'documents', 'primary', 'tree', 'content', 'root', 'storage', 'emulated', '0']);
+const GENERIC_PATH_NAMES = new Set(['document', 'documents', 'primary', 'tree', 'content', 'root', 'storage', 'emulated', '0', 'self', 'external', 'sdcard', 'media']);
 
 const normalizePathParts = (parts) => {
   // Strip leading generic/system path segments (Android SAF artifacts)
@@ -849,13 +849,7 @@ export default function App() {
     const audioFiles = files.filter(f => f.type.startsWith('audio/'));
     if (audioFiles.length === 0) { alert("No audio files found."); return null; }
 
-    // DEBUG: Show raw path to diagnose Android naming issue
-    if (files.length > 0) {
-      const samplePaths = files.slice(0, 3).map(f => f.webkitRelativePath || '(empty)');
-      alert('DEBUG paths:\n' + samplePaths.join('\n'));
-    }
-
-    // Extract folder name, skipping Android SAF path artifacts
+    // Extract folder name, skipping Android SAF path artifacts (e.g. tree/primary/...)
     let folderName = "Imported Folder";
     if (files.length > 0 && files[0].webkitRelativePath) {
       const parts = files[0].webkitRelativePath.split('/');
