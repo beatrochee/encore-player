@@ -80,10 +80,11 @@ const saveCuesToDB = async (cues) => {
   const store = tx.objectStore(STORE_NAME);
   // Clear existing and write all
   store.clear();
-  for (const cue of cues) {
+  cues.forEach((cue, index) => {
     const record = {
       id: cue.id,
       name: cue.name,
+      order: index,
       stems: cue.stems.map(s => ({
         id: s.id,
         stemName: s.stemName,
@@ -92,7 +93,7 @@ const saveCuesToDB = async (cues) => {
       })),
     };
     store.put(record);
-  }
+  });
   return new Promise((resolve, reject) => {
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
@@ -106,7 +107,7 @@ const loadCuesFromDB = async () => {
   const request = store.getAll();
   return new Promise((resolve, reject) => {
     request.onsuccess = () => {
-      const records = request.result || [];
+      const records = (request.result || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       const cues = records.map(r => ({
         id: r.id,
         name: r.name,
@@ -114,7 +115,7 @@ const loadCuesFromDB = async () => {
           id: s.id,
           stemName: s.stemName,
           name: s.name,
-          file: s.blob, // Blob stored in IDB, usable as File for createObjectURL
+          file: s.blob,
         })),
       }));
       resolve(cues);
@@ -699,7 +700,7 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
         `}>
             <div className={`p-3 md:p-4 border-b ${THEME.header.split('border-')[1] || 'border-transparent'} text-xs font-bold ${THEME.textMuted} uppercase tracking-wider flex items-center justify-between`}>
-                <span className="flex items-center gap-2"><List size={14} /> Cues ({cues.length})</span>
+                <span className="flex items-center gap-2"><List size={14} /> Songs ({cues.length})</span>
                 <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1 rounded hover:bg-white/10 text-zinc-400">
                     <Square size={12} />
                 </button>
@@ -779,7 +780,7 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
             {/* Song Info Bar */}
             <div className={`px-3 md:px-4 py-2 md:py-4 border-b ${THEME.header.split('border-')[1]} bg-black/10 flex items-center justify-between z-20 gap-2`}>
                 <div className="min-w-0 flex-1">
-                    <h2 className="text-base md:text-xl font-bold leading-tight truncate">{currentCue?.name || "No Song Selected"}</h2>
+                    <h2 className="text-base md:text-xl font-bold leading-tight truncate">{currentCue?.name || "No Song"}</h2>
                     {isLoading && <span className={`${THEME.accentText} text-[10px] md:text-xs animate-pulse`}>Syncing & Generating Waveforms...</span>}
                     {error && <span className="text-red-400 text-[10px] md:text-xs">{error}</span>}
                 </div>
