@@ -133,13 +133,25 @@ const removeCueFromDB = async (cueId) => {
 
 // --- Helper Functions ---
 
+const GENERIC_PATH_NAMES = new Set(['document', 'documents', 'primary', 'tree', 'content', 'root', 'storage', 'emulated', '0']);
+
+const normalizePathParts = (parts) => {
+  // Strip leading generic/system path segments (Android SAF artifacts)
+  let start = 0;
+  while (start < parts.length - 1 && GENERIC_PATH_NAMES.has(parts[start].toLowerCase())) {
+    start++;
+  }
+  return start > 0 ? parts.slice(start) : parts;
+};
+
 const organizeFilesIntoCues = (flatFiles, folderName) => {
   const cuesMap = new Map();
   const rootStems = [];
   const rootFolderName = folderName || "Imported Folder";
 
   flatFiles.forEach(file => {
-    const pathParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [];
+    const rawParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [];
+    const pathParts = normalizePathParts(rawParts);
 
     if (pathParts.length > 2) {
       // It's in a subfolder. Use subfolder name as Cue Name.
@@ -830,11 +842,19 @@ export default function App() {
     const files = Array.from(e.target.files);
     const audioFiles = files.filter(f => f.type.startsWith('audio/'));
     if (audioFiles.length === 0) { alert("No audio files found."); return null; }
+
+    // Extract folder name, skipping Android SAF path artifacts
     let folderName = "Imported Folder";
     if (files.length > 0 && files[0].webkitRelativePath) {
-      const firstPath = files[0].webkitRelativePath.split('/');
-      if (firstPath.length > 1) folderName = firstPath[0];
+      const parts = files[0].webkitRelativePath.split('/');
+      for (const part of parts) {
+        if (part && !GENERIC_PATH_NAMES.has(part.toLowerCase())) {
+          folderName = part;
+          break;
+        }
+      }
     }
+
     const rawFiles = audioFiles.map((file, index) => ({
       id: `local-${index}-${file.name}`, name: file.name, file: file, webkitRelativePath: file.webkitRelativePath || ''
     }));
