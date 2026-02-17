@@ -507,6 +507,18 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
     setMixerState(initial);
   };
 
+  const syncTimes = () => {
+    const instances = audioInstances.current;
+    if (instances.size < 2) return;
+    const master = instances.values().next().value;
+    const masterTime = master.currentTime;
+    instances.forEach((audio) => {
+      if (audio !== master && Math.abs(audio.currentTime - masterTime) > 0.05) {
+        audio.currentTime = masterTime;
+      }
+    });
+  };
+
   const applyVolumes = (currentMixerState) => {
     const instances = audioInstances.current;
     if (instances.size === 0) return;
@@ -526,9 +538,18 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
     });
   };
 
+  // Sync and apply volumes on mixer state changes
   useEffect(() => {
+    syncTimes();
     applyVolumes(mixerState);
   }, [mixerState, masterVolume, isMasterMuted]);
+
+  // Periodic sync to prevent drift during playback
+  useEffect(() => {
+    if (!isPlaying) return;
+    const interval = setInterval(syncTimes, 2000);
+    return () => clearInterval(interval);
+  }, [isPlaying]);
 
   useEffect(() => {
     const loadCue = async () => {
