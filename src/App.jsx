@@ -19,7 +19,8 @@ import {
   Activity,
   X,
   Plus,
-  GripVertical
+  GripVertical,
+  ListEnd
 } from 'lucide-react';
 
 /* Encore! Player
@@ -663,12 +664,14 @@ const PlayerScreen = ({ cues, onBack, onRemoveCue, onClearAll, onAddFolder, onRe
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-            <div className={`flex items-center gap-1.5 md:gap-2 ${THEME.deck} rounded-lg p-1 px-2 md:px-3 border`}>
-                <span className={`text-[10px] md:text-xs font-bold uppercase ${autoNext ? THEME.accentText : THEME.textMuted}`}>Auto</span>
-                <button onClick={() => setAutoNext(!autoNext)} className={`w-8 h-4 rounded-full relative transition-colors ${autoNext ? 'bg-orange-500' : 'bg-black/30'}`}>
-                    <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${autoNext ? 'left-4.5' : 'left-0.5'}`} style={{left: autoNext ? 'calc(100% - 14px)' : '2px'}}/>
-                </button>
-            </div>
+            <button
+                onClick={() => setAutoNext(!autoNext)}
+                className={`flex items-center gap-1.5 rounded-lg p-1.5 px-2.5 border transition-colors ${autoNext ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' : `${THEME.deck} text-zinc-500`}`}
+                title="Auto-advance to next cue"
+            >
+                <ListEnd size={16} />
+                <span className={`text-[10px] md:text-xs font-bold uppercase hidden sm:inline`}>Auto</span>
+            </button>
             <Button variant="ghost" onClick={onBack} title="Close Show" className="p-1.5 md:p-2">
                 <HardDrive size={18} />
             </Button>
